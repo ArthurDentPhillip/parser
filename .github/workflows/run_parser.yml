@@ -27,7 +27,7 @@ jobs:
       - name: Run parser
         run: python parser.py
       - name: Upload results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: delivery-results
           path: |
