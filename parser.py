@@ -138,27 +138,87 @@ def run_task(args):
         return results
     # Запись результата в файл
 
+    # def append_result_to_file(result):
+    #     lockfile = "delivery_results.lock"
+    #     while os.path.exists(lockfile):
+    #         time.sleep(0.1)
+    #     open(lockfile, "w").close()
+    #     # Проверяет есть ли файл json и читает данные из него, а если его нет, создает пустой json
+    #     if os.path.exists(RESULTS_FILE):
+    #         with open(RESULTS_FILE, "r", encoding="utf-8") as f:
+    #             try:
+    #                 data = json.load(f)
+    #             except:
+    #                 data = []
+    #     else:
+    #         data = []
+    #     # Добавление прочитанных результатов в data
+    #     data.append(result)
+    #     # Добавление их в файл
+    #     with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+    #         json.dump(data, f, ensure_ascii=False, indent=2)
+    #     # Закрытие локфайла
+    #     os.remove(lockfile)
     def append_result_to_file(result):
         lockfile = "delivery_results.lock"
-        while os.path.exists(lockfile):
-            time.sleep(0.1)
-        open(lockfile, "w").close()
-        # Проверяет есть ли файл json и читает данные из него, а если его нет, создает пустой json
-        if os.path.exists(RESULTS_FILE):
-            with open(RESULTS_FILE, "r", encoding="utf-8") as f:
+        max_attempts = 5
+        attempt = 0
+
+        while attempt < max_attempts:
+            try:
+                # Попытка создания lock-файла
+                with open(lockfile, 'x') as f:
+                    # Записываем PID для идентификации
+                    f.write(str(os.getpid()))
+
                 try:
-                    data = json.load(f)
-                except:
-                    data = []
-        else:
-            data = []
-        # Добавление прочитанных результатов в data
-        data.append(result)
-        # Добавление их в файл
-        with open(RESULTS_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        # Закрытие локфайла
-        os.remove(lockfile)
+                    # Чтение существующих данных
+                    if os.path.exists(RESULTS_FILE):
+                        try:
+                            with open(RESULTS_FILE, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                        except (json.JSONDecodeError, IOError) as e:
+                            print(f"⚠ Ошибка чтения файла: {e}")
+                            data = []
+                    else:
+                        data = []
+
+                    # Добавление новых данных
+                    data.append(result)
+
+                    # Запись с временным файлом
+                    temp_file = RESULTS_FILE + ".tmp"
+                    with open(temp_file, "w", encoding="utf-8") as f:
+                        json.dump(data, f, ensure_ascii=False, indent=2)
+
+                    # Атомарная замена файла
+                    os.replace(temp_file, RESULTS_FILE)
+
+                    return True  # Успешная запись
+
+                finally:
+                    # Гарантированное удаление lock-файла
+                    if os.path.exists(lockfile):
+                        os.remove(lockfile)
+
+            except FileExistsError:
+                # Ожидание освобождения блокировки
+                time.sleep(0.5 * (attempt + 1))
+                attempt += 1
+                print(
+                    f"⌛ Ожидание lock-файла (попытка {attempt}/{max_attempts})")
+
+            except Exception as e:
+                print(f"❌ Критическая ошибка: {e}")
+                if os.path.exists(lockfile):
+                    try:
+                        os.remove(lockfile)
+                    except:
+                        pass
+                return False
+
+        print("⚠ Превышено максимальное количество попыток")
+        return False
 
     # def append_result_to_file(result):
     #     lockfile = "delivery_results.lock"
@@ -296,8 +356,7 @@ def run_task(args):
 
 
 def main():
-    cities = ["Адлерский",
-              "Алматы",
+    cities = ["Алматы",
               "Апатиты",
               "Алдан",
               "Анадырь",
