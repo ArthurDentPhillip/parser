@@ -18,7 +18,7 @@ jobs:
         with:
           name: delivery-results
           path: ./
-          if-no-files-found: ignore
+          # if-no-files-found: ignore
 
       - uses: actions/checkout@v3
 
