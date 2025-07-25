@@ -1,56 +1,37 @@
-﻿name: Delivery Parser
-
+name: Аэрогруз Парсер
 on:
-  workflow_dispatch:
-  push:
-    branches: [main, master]
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 8 * * *'
+  workflow_dispatch:
 
 jobs:
-  run-parser:
+  parse:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-
     steps:
-      - name: Download previous results
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: delivery-results
-          path: ./
-          # if-no-files-found: ignore
-
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install selenium webdriver-manager
-          sudo apt-get install -y wget unzip
-          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo apt install -y ./google-chrome-stable_current_amd64.deb
-
-      - name: Run parser
-        run: |
-          if [ -f "progress.state" ]; then
-            echo "Resuming from saved state..."
-            python parser.py --resume
-          else
-            echo "Starting new session..."
-            python parser.py
-          fi
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        with:
-          name: delivery-results
-          path: |
-            delivery_results.json
-            progress.state
-            errors.log
+    - uses: actions/checkout@v4
+    
+    - name: Установка Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Установка зависимостей
+      run: |
+        pip install -r requirements.txt
+        
+    - name: Установка Chrome
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+        
+    - name: Запуск парсера
+      run: |
+        python parser.py
+        
+    - name: Архивирование результатов
+      uses: actions/upload-artifact@v4
+      with:
+        name: результаты-аэрогруз
+        path: |
+          results.json
+          progress.json
